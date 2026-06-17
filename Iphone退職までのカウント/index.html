@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="退職カウント">
+  <title>退職カウントダウン</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, 'Helvetica Neue', sans-serif;
+      background: #0a0a0f;
+      color: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    /* 背景アニメーション */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(ellipse at 60% 40%, rgba(99, 38, 255, 0.12) 0%, transparent 60%),
+                  radial-gradient(ellipse at 20% 80%, rgba(0, 200, 255, 0.08) 0%, transparent 50%);
+      animation: bgPulse 8s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes bgPulse {
+      0% { transform: scale(1) rotate(0deg); }
+      100% { transform: scale(1.1) rotate(3deg); }
+    }
+
+    .container {
+      width: 100%;
+      max-width: 390px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ヘッダー */
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .header .label {
+      font-size: 11px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 8px;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* メインカード */
+    .card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 28px;
+      padding: 36px 28px;
+      backdrop-filter: blur(20px);
+      margin-bottom: 16px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    /* カウントダウン数字 */
+    .countdown-wrap {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .days-number {
+      font-size: 100px;
+      font-weight: 800;
+      line-height: 1;
+      background: linear-gradient(135deg, #ffffff 0%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -4px;
+    }
+
+    .days-unit {
+      font-size: 18px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 4px;
+      letter-spacing: 2px;
+    }
+
+    /* 時間カウンター */
+    .time-row {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .time-item {
+      text-align: center;
+    }
+
+    .time-item .num {
+      font-size: 28px;
+      font-weight: 700;
+      color: #a78bfa;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .time-item .unit {
+      font-size: 10px;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 1px;
+    }
+
+    .time-sep {
+      font-size: 24px;
+      color: rgba(255,255,255,0.2);
+      align-self: center;
+      margin-bottom: 16px;
+    }
+
+    /* 進捗バー */
+    .progress-section {
+      margin-bottom: 24px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6326ff, #60a5fa);
+      border-radius: 10px;
+      transition: width 0.6s ease;
+      box-shadow: 0 0 12px rgba(99, 38, 255, 0.6);
+    }
+
+    /* 励ましメッセージ */
+    .message-card {
+      background: rgba(167, 139, 250, 0.06);
+      border: 1px solid rgba(167, 139, 250, 0.15);
+      border-radius: 16px;
+      padding: 16px 20px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.6;
+      text-align: center;
+      margin-bottom: 16px;
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 退職日表示 */
+    .target-date {
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255,255,255,0.25);
+      margin-bottom: 4px;
+    }
+
+    /* 設定ボタン */
+    .btn-setting {
+      width: 100%;
+      padding: 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-setting:hover, .btn-setting:active {
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.8);
+    }
+
+    /* モーダル */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 28px 28px 0 0;
+      padding: 32px 24px 48px;
+      width: 100%;
+      max-width: 390px;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    .modal-overlay.open .modal {
+      transform: translateY(0);
+    }
+
+    .modal-handle {
+      width: 36px;
+      height: 4px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px;
+      margin: 0 auto 28px;
+    }
+
+    .modal h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      color: #fff;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      border-color: rgba(167, 139, 250, 0.5);
+    }
+
+    .btn-save {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #6326ff, #60a5fa);
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      box-shadow: 0 8px 24px rgba(99, 38, 255, 0.4);
+    }
+
+    .btn-save:active {
+      opacity: 0.85;
+    }
+
+    /* 出勤日数サブ表示 */
+    .work-days-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 24px;
+    }
+
+    .work-days-num {
+      font-size: 36px;
+      font-weight: 700;
+      color: #60a5fa;
+    }
+
+    .work-days-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.4);
+    }
+
+    /* 年齢スライダー */
+    .age-slider-wrap {
+      position: relative;
+      padding: 8px 0 4px;
+    }
+
+    .age-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      outline: none;
+    }
+
+    .age-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6326ff, #60a5fa);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(99,38,255,0.6);
+    }
+
+    .age-display {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 40px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    .age-display-unit {
+      text-align: center;
+      font-size: 13px;
+      color: rgba(255,255,255,0.35);
+      margin-top: 2px;
+      letter-spacing: 1px;
+    }
+
+    /* 曜日チェックボックス */
+    .day-checks {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .day-check {
+      display: none;
+    }
+
+    .day-check + label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.4);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .day-check:checked + label {
+      background: rgba(99, 38, 255, 0.3);
+      border-color: #a78bfa;
+      color: #fff;
+    }
+
+    /* 休業日タグ入力 */
+    .holiday-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+      min-height: 28px;
+    }
+
+    .holiday-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      background: rgba(99,38,255,0.2);
+      border: 1px solid rgba(167,139,250,0.3);
+      border-radius: 20px;
+      font-size: 12px;
+      color: #a78bfa;
+    }
+
+    .holiday-tag button {
+      background: none;
+      border: none;
+      color: rgba(167,139,250,0.6);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .holiday-add-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .holiday-add-row input {
+      flex: 1;
+    }
+
+    .btn-add-holiday {
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      color: rgba(255,255,255,0.6);
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    /* 未設定状態 */
+    .no-date {
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    .no-date .emoji {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .no-date p {
+      font-size: 15px;
+      color: rgba(255,255,255,0.4);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="label">Retirement Countdown</div>
+      <h1>退職カウントダウン</h1>
+    </div>
+
+    <div class="card" id="mainCard">
+      <!-- JS で描画 -->
+    </div>
+
+    <!-- メインページ年齢スライダー -->
+    <div id="mainSliderWrap" style="display:none; margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+        <span style="font-size:11px; color:rgba(255,255,255,0.3); letter-spacing:2px;">退職年齢</span>
+        <span id="mainAgeDisplay" style="font-size:22px; font-weight:700; background:linear-gradient(135deg,#a78bfa,#60a5fa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;"></span>
+      </div>
+      <input type="range" class="age-slider" id="mainAgeSlider"
+        min="30" max="80" step="1"
+        oninput="onMainAgeSlider()">
+      <div id="mainSliderPreview" style="font-size:11px; color:rgba(255,255,255,0.25); text-align:right; margin-top:4px;"></div>
+    </div>
+
+    <div class="message-card" id="messageCard"></div>
+    <div class="target-date" id="targetDateLabel"></div>
+
+    <button class="btn-setting" onclick="openModal()">
+      退職予定日を設定 ／ 変更
+    </button>
+  </div>
+
+  <!-- 設定モーダル -->
+  <div class="modal-overlay" id="modal" onclick="handleOverlayClick(event)">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>退職予定日を設定</h2>
+      <div class="form-group">
+        <label>生年月日</label>
+        <input type="date" id="birthdayInput" onchange="updatePreview()">
+      </div>
+      <div class="form-group">
+        <label>退職する年齢</label>
+        <div class="age-display" id="ageDisplay">60</div>
+        <div class="age-display-unit">歳</div>
+        <div class="age-slider-wrap">
+          <input type="range" class="age-slider" id="ageInput"
+            min="30" max="80" step="1" value="60"
+            oninput="onAgeSlider()">
+        </div>
+        <input type="hidden" id="monthInput" value="0">
+      </div>
+      <div id="calcPreview" style="font-size:12px; color:#a78bfa; margin-bottom:16px; min-height:18px;"></div>
+      <div class="form-group">
+        <label>固定休日（曜日）</label>
+        <div class="day-checks">
+          <input type="checkbox" class="day-check" id="d0" value="0"><label for="d0">日</label>
+          <input type="checkbox" class="day-check" id="d1" value="1"><label for="d1">月</label>
+          <input type="checkbox" class="day-check" id="d2" value="2"><label for="d2">火</label>
+          <input type="checkbox" class="day-check" id="d3" value="3"><label for="d3">水</label>
+          <input type="checkbox" class="day-check" id="d4" value="4"><label for="d4">木</label>
+          <input type="checkbox" class="day-check" id="d5" value="5"><label for="d5">金</label>
+          <input type="checkbox" class="day-check" id="d6" value="6"><label for="d6">土</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>会社の休業日（日付を追加）</label>
+        <div class="holiday-tags" id="holidayTags"></div>
+        <div class="holiday-add-row">
+          <input type="number" id="holidayMonth" min="1" max="12" placeholder="月"
+            style="width:64px; text-align:center;">
+          <span style="color:rgba(255,255,255,0.4); align-self:center;">月</span>
+          <input type="number" id="holidayDay" min="1" max="31" placeholder="日"
+            style="width:64px; text-align:center;">
+          <span style="color:rgba(255,255,255,0.4); align-self:center;">日</span>
+          <button class="btn-add-holiday" onclick="addHoliday()">＋</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>年間有休取得予定日数</label>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="number" id="paidLeaveInput" min="0" max="365" placeholder="10"
+            style="width:80px; text-align:center;">
+          <span style="color:rgba(255,255,255,0.5); font-size:15px;">日 / 年</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>開始日（現在の職場に入った日）</label>
+        <input type="date" id="startInput">
+      </div>
+      <button class="btn-save" onclick="saveSettings()">保存する</button>
+    </div>
+  </div>
+
+  <script>
+    const MESSAGES = [
+      "あと少し。あなたならできる。",
+      "毎日が、自由への一歩。",
+      "この瞬間も、カウントは進んでいる。",
+      "終わりが近い。始まりも近い。",
+      "諦めないで。もう少しだけ。",
+      "今日も生き抜いた。それだけで十分。",
+      "未来のあなたが、今のあなたに感謝する。",
+      "その日は必ず来る。",
+      "嵐の後には、必ず青空が広がる。",
+      "あなたの我慢は、絶対に報われる。",
+    ];
+
+    let retirementDate = localStorage.getItem('retirementDate') || null;
+    let startDate = localStorage.getItem('startDate') || null;
+    let birthday = localStorage.getItem('birthday') || null;
+    let retireAge = localStorage.getItem('retireAge') || null;
+    let retireMonth = localStorage.getItem('retireMonth') || null;
+    // 固定休日曜日: JSON配列 e.g. [0,6] = 日・土
+    let offDays = JSON.parse(localStorage.getItem('offDays') || '[0,6]');
+    // 会社休業日: JSON配列 e.g. ["01-01","05-03"] (月-日のみ、毎年繰り返し)
+    let companyHolidays = JSON.parse(localStorage.getItem('companyHolidays') || '[]');
+    // 年間有休取得予定日数
+    let paidLeavePerYear = Number(localStorage.getItem('paidLeavePerYear') || '0');
+
+    // 今日〜退職日前日の出勤日数を計算
+    function calcWorkDays(targetDateStr) {
+      // companyHolidays は "MM-DD" 形式、毎年その月日が休み
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const target = new Date(targetDateStr);
+      target.setHours(0, 0, 0, 0);
+      let count = 0;
+      const cur = new Date(today);
+      while (cur < target) {
+        const dow = cur.getDay();
+        const mmdd = cur.toISOString().slice(5, 10); // "MM-DD"
+        if (!offDays.includes(dow) && !companyHolidays.includes(mmdd)) count++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      // 有休を差し引く（残り年数分）
+      if (paidLeavePerYear > 0 && targetDateStr) {
+        const yearsLeft = (target - today) / (365.25 * 24 * 3600 * 1000);
+        const totalLeave = Math.floor(paidLeavePerYear * yearsLeft);
+        count = Math.max(0, count - totalLeave);
+      }
+      return count;
+    }
+
+    function getRandomMessage() {
+      const idx = Math.floor(Math.random() * MESSAGES.length);
+      return MESSAGES[idx];
+    }
+
+    function formatDate(dateStr) {
+      const d = new Date(dateStr);
+      return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+    }
+
+    // 今日〜今年12月31日の出勤日数（退職日を超えない）
+    function calcWorkDaysThisYear(targetDateStr) {
+      const holidaySet = new Set(companyHolidays);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const yearEnd = new Date(today.getFullYear(), 11, 31);
+      const target = new Date(targetDateStr);
+      target.setHours(0, 0, 0, 0);
+      const end = target < yearEnd ? target : yearEnd;
+      let count = 0;
+      const cur = new Date(today);
+      while (cur < end) {
+        const dow = cur.getDay();
+        const mmdd = cur.toISOString().slice(5, 10);
+        if (!offDays.includes(dow) && !companyHolidays.includes(mmdd)) count++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      return count;
+    }
+
+    function pad(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    function renderMain() {
+      const card = document.getElementById('mainCard');
+      const msgCard = document.getElementById('messageCard');
+      const targetLabel = document.getElementById('targetDateLabel');
+
+      if (!retirementDate) {
+        card.innerHTML = `
+          <div class="no-date">
+            <div class="emoji">📅</div>
+            <p>退職予定日を設定すると<br>カウントダウンが始まります</p>
+          </div>`;
+        msgCard.textContent = '';
+        targetLabel.textContent = '';
+        return;
+      }
+
+      const now = new Date();
+      const target = new Date(retirementDate);
+      target.setHours(23, 59, 59, 999);
+      const diff = target - now;
+
+      if (diff <= 0) {
+        card.innerHTML = `
+          <div class="countdown-wrap">
+            <div class="days-number" style="font-size:60px; letter-spacing:-2px;">🎉</div>
+            <div class="days-unit" style="font-size:22px; color:#a78bfa; margin-top:12px;">退職おめでとう！</div>
+          </div>`;
+        msgCard.textContent = "新しい人生の始まりです。おめでとうございます！";
+        targetLabel.textContent = formatDate(retirementDate) + " に退職されました";
+        return;
+      }
+
+      const totalSec = Math.floor(diff / 1000);
+      const days = Math.floor(totalSec / 86400);
+      const hours = Math.floor((totalSec % 86400) / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+
+      let progressHTML = '';
+      if (startDate) {
+        const start = new Date(startDate);
+        const total = target - start;
+        const elapsed = now - start;
+        const pct = Math.min(100, Math.max(0, (elapsed / total) * 100));
+        progressHTML = `
+          <div class="progress-section">
+            <div class="progress-label">
+              <span>開始日</span>
+              <span>${pct.toFixed(1)}% 経過</span>
+              <span>退職日</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: ${pct}%"></div>
+            </div>
+          </div>`;
+      }
+
+      const workDays = calcWorkDays(retirementDate);
+      const workDaysThisYear = calcWorkDaysThisYear(retirementDate);
+      const thisYear = new Date().getFullYear();
+
+      const ageLabel = retireAge ? `<div style="font-size:13px; color:rgba(255,255,255,0.35); letter-spacing:2px; margin-bottom:8px;">${retireAge}歳で退職まで</div>` : '';
+
+      card.innerHTML = `
+        <div class="countdown-wrap">
+          ${ageLabel}
+          <div class="days-number">${workDays}</div>
+          <div class="days-unit">出勤日</div>
+          <div style="margin-top:16px; padding:10px 20px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:14px; display:inline-block;">
+            <span style="font-size:26px; font-weight:700; color:#60a5fa;">${workDaysThisYear}</span>
+            <span style="font-size:12px; color:rgba(255,255,255,0.35); margin-left:4px;">${thisYear}年の残り出勤日</span>
+          </div>
+          <div style="margin-top:12px; font-size:32px; font-weight:700; color:rgba(255,255,255,0.3); letter-spacing:-1px;">${days}</div>
+          <div style="font-size:12px; color:rgba(255,255,255,0.25); letter-spacing:2px; margin-top:2px;">カレンダー日数</div>
+        </div>
+        <div class="time-row">
+          <div class="time-item">
+            <div class="num" id="hh">${pad(hours)}</div>
+            <div class="unit">時間</div>
+          </div>
+          <div class="time-sep">:</div>
+          <div class="time-item">
+            <div class="num" id="mm">${pad(mins)}</div>
+            <div class="unit">分</div>
+          </div>
+          <div class="time-sep">:</div>
+          <div class="time-item">
+            <div class="num" id="ss">${pad(secs)}</div>
+            <div class="unit">秒</div>
+          </div>
+        </div>
+        ${progressHTML}`;
+
+      msgCard.textContent = getRandomMessage();
+      targetLabel.textContent = `退職予定日：${formatDate(retirementDate)}`;
+
+      // メインスライダー初期化
+      if (birthday && retireAge) {
+        const wrap = document.getElementById('mainSliderWrap');
+        const slider = document.getElementById('mainAgeSlider');
+        const disp = document.getElementById('mainAgeDisplay');
+        const prev = document.getElementById('mainSliderPreview');
+        if (wrap) wrap.style.display = 'block';
+        if (slider) slider.value = retireAge;
+        if (disp) disp.textContent = retireAge + '歳';
+        if (prev) prev.textContent = '退職予定日：' + formatDate(retirementDate);
+      }
+    }
+
+    function tick() {
+      if (!retirementDate) return;
+      const now = new Date();
+      const target = new Date(retirementDate);
+      target.setHours(23, 59, 59, 999);
+      const diff = target - now;
+      if (diff <= 0) return;
+
+      const totalSec = Math.floor(diff / 1000);
+      const hours = Math.floor((totalSec % 86400) / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+
+      const hh = document.getElementById('hh');
+      const mm = document.getElementById('mm');
+      const ss = document.getElementById('ss');
+      if (hh) hh.textContent = pad(hours);
+      if (mm) mm.textContent = pad(mins);
+      if (ss) ss.textContent = pad(secs);
+    }
+
+    function calcRetirementDate(bd, age, months) {
+      if (!bd || age === '' || age === null) return null;
+      const d = new Date(bd);
+      d.setFullYear(d.getFullYear() + Number(age));
+      d.setMonth(d.getMonth() + Number(months || 0));
+      return d.toISOString().slice(0, 10);
+    }
+
+    function onMainAgeSlider() {
+      if (!birthday) return;
+      const age = document.getElementById('mainAgeSlider').value;
+      document.getElementById('mainAgeDisplay').textContent = age + '歳';
+      retireAge = age;
+      retireMonth = retireMonth || '0';
+      retirementDate = calcRetirementDate(birthday, age, retireMonth);
+      localStorage.setItem('retireAge', age);
+      localStorage.setItem('retirementDate', retirementDate);
+      const preview = document.getElementById('mainSliderPreview');
+      if (preview && retirementDate) preview.textContent = '退職予定日：' + formatDate(retirementDate);
+      renderMain();
+    }
+
+    function onAgeSlider() {
+      const val = document.getElementById('ageInput').value;
+      document.getElementById('ageDisplay').textContent = val;
+      updatePreview();
+    }
+
+    function updatePreview() {
+      const bd = document.getElementById('birthdayInput').value;
+      const age = document.getElementById('ageInput').value;
+      const months = document.getElementById('monthInput').value;
+      const preview = document.getElementById('calcPreview');
+      if (!bd || age === '') { preview.textContent = ''; return; }
+      const result = calcRetirementDate(bd, age, months);
+      if (result) preview.textContent = `→ 退職予定日：${formatDate(result)}`;
+    }
+
+    function mmddLabel(mmdd) {
+      // "MM-DD" → "M月D日"
+      const [m, d] = mmdd.split('-');
+      return `${Number(m)}月${Number(d)}日`;
+    }
+
+    function renderHolidayTags() {
+      const container = document.getElementById('holidayTags');
+      if (!container) return;
+      container.innerHTML = companyHolidays.map(mmdd => `
+        <span class="holiday-tag">
+          ${mmddLabel(mmdd)}
+          <button onclick="removeHoliday('${mmdd}')">×</button>
+        </span>`).join('');
+    }
+
+    function addHoliday() {
+      const m = document.getElementById('holidayMonth').value;
+      const d = document.getElementById('holidayDay').value;
+      if (!m || !d) return;
+      const mmdd = String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      if (!companyHolidays.includes(mmdd)) {
+        companyHolidays.push(mmdd);
+        companyHolidays.sort();
+      }
+      document.getElementById('holidayMonth').value = '';
+      document.getElementById('holidayDay').value = '';
+      renderHolidayTags();
+    }
+
+    function removeHoliday(mmdd) {
+      companyHolidays = companyHolidays.filter(x => x !== mmdd);
+      renderHolidayTags();
+    }
+
+    function openModal() {
+      if (birthday) document.getElementById('birthdayInput').value = birthday;
+      if (retireAge !== null) {
+        document.getElementById('ageInput').value = retireAge;
+        document.getElementById('ageDisplay').textContent = retireAge;
+      }
+      if (retireMonth !== null) document.getElementById('monthInput').value = retireMonth;
+      if (startDate) document.getElementById('startInput').value = startDate;
+      // 曜日チェック
+      [0,1,2,3,4,5,6].forEach(d => {
+        document.getElementById('d' + d).checked = offDays.includes(d);
+      });
+      // 有休
+      document.getElementById('paidLeaveInput').value = paidLeavePerYear || '';
+      renderHolidayTags();
+      updatePreview();
+      document.getElementById('modal').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+    }
+
+    function handleOverlayClick(e) {
+      if (e.target === document.getElementById('modal')) closeModal();
+    }
+
+    function saveSettings() {
+      const bd = document.getElementById('birthdayInput').value;
+      const age = document.getElementById('ageInput').value;
+      const months = document.getElementById('monthInput').value;
+      const s = document.getElementById('startInput').value;
+      if (!bd) { alert('生年月日を入力してください'); return; }
+      if (age === '') { alert('退職する年齢を入力してください'); return; }
+      const computed = calcRetirementDate(bd, age, months);
+      if (!computed) { alert('日付の計算に失敗しました'); return; }
+      birthday = bd;
+      retireAge = age;
+      retireMonth = months || '0';
+      retirementDate = computed;
+      localStorage.setItem('birthday', bd);
+      localStorage.setItem('retireAge', age);
+      localStorage.setItem('retireMonth', months || '0');
+      localStorage.setItem('retirementDate', computed);
+      if (s) {
+        startDate = s;
+        localStorage.setItem('startDate', s);
+      }
+      // 固定休日曜日
+      offDays = [0,1,2,3,4,5,6].filter(d => document.getElementById('d'+d).checked);
+      localStorage.setItem('offDays', JSON.stringify(offDays));
+      // 会社休業日（addHolidayで既に更新済み）
+      localStorage.setItem('companyHolidays', JSON.stringify(companyHolidays));
+      // 有休
+      paidLeavePerYear = Number(document.getElementById('paidLeaveInput').value || '0');
+      localStorage.setItem('paidLeavePerYear', String(paidLeavePerYear));
+
+      closeModal();
+      renderMain();
+    }
+
+    // 毎秒更新
+    renderMain();
+    setInterval(() => {
+      tick();
+      // 0時をまたいだら再描画
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() === 0 && now.getSeconds() === 0) {
+        renderMain();
+      }
+    }, 1000);
+
+    // メッセージを5分ごとに変える
+    setInterval(() => {
+      const m = document.getElementById('messageCard');
+      if (m && retirementDate) m.textContent = getRandomMessage();
+    }, 300000);
+  </script>
+</body>
+</html>
