@@ -240,11 +240,23 @@
       background: #1a1a2e;
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 28px 28px 0 0;
-      padding: 32px 24px 48px;
+      padding: 16px 24px calc(32px + env(safe-area-inset-bottom));
       width: 100%;
       max-width: 390px;
+      max-height: 90vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       transform: translateY(100%);
       transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    /* スクロールバー（細く） */
+    .modal::-webkit-scrollbar {
+      width: 4px;
+    }
+    .modal::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
     }
 
     .modal-overlay.open .modal {
@@ -256,7 +268,10 @@
       height: 4px;
       background: rgba(255,255,255,0.2);
       border-radius: 2px;
-      margin: 0 auto 28px;
+      margin: 0 auto 20px;
+      position: sticky;
+      top: 0;
+      cursor: pointer;
     }
 
     .modal h2 {
@@ -560,7 +575,7 @@
   <!-- 設定モーダル -->
   <div class="modal-overlay" id="modal" onclick="handleOverlayClick(event)">
     <div class="modal">
-      <div class="modal-handle"></div>
+      <div class="modal-handle" onclick="closeModal()"></div>
       <h2>退職予定日を設定</h2>
       <div class="form-group">
         <label>生年月日</label>
