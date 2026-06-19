@@ -539,6 +539,100 @@
       color: rgba(255,255,255,0.4);
       line-height: 1.6;
     }
+
+    /* 楽しみカウントダウン（大きいカード） */
+    .event-card {
+      padding: 28px 24px;
+    }
+
+    .event-card.past {
+      opacity: 0.45;
+    }
+
+    .event-card .event-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.9);
+    }
+
+    .event-card .event-date {
+      font-size: 12px;
+      color: rgba(255,255,255,0.35);
+      margin-top: 4px;
+      margin-bottom: 8px;
+    }
+
+    /* 楽しみカウントダウンは温かみのある明るい色 */
+    .event-card .days-number {
+      background: linear-gradient(135deg, #ffe29a 0%, #ffb347 50%, #ff8c69 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .event-card .event-name {
+      color: #ffd9a0;
+    }
+
+    .event-card .days-unit {
+      color: #ffb347;
+    }
+
+    /* モーダル内イベント編集 */
+    .event-edit-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+    }
+
+    .event-edit-row .e-name {
+      flex: 1;
+      font-size: 13px;
+      color: rgba(255,255,255,0.85);
+    }
+
+    .event-edit-row .e-date {
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+    }
+
+    .event-edit-row button {
+      background: none;
+      border: none;
+      color: rgba(167,139,250,0.6);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0 4px;
+    }
+
+    .event-add-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .event-add-row input[type="text"] { flex: 1; }
+
+    .btn-add-holiday {
+      padding: 10px 16px;
+      background: rgba(99,38,255,0.25);
+      border: 1px solid rgba(167,139,250,0.4);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    .btn-add-holiday:active { opacity: 0.85; }
   </style>
 </head>
 <body>
@@ -547,6 +641,9 @@
       <div class="label">Retirement Countdown</div>
       <h1>退職カウントダウン</h1>
     </div>
+
+    <!-- 楽しみカウントダウン一覧（最上部） -->
+    <div id="eventList"></div>
 
     <div class="card" id="mainCard">
       <!-- JS で描画 -->
@@ -627,6 +724,79 @@
         <label>開始日（現在の職場に入った日）</label>
         <input type="date" id="startInput">
       </div>
+
+      <div style="border-top:1px solid rgba(255,255,255,0.08); margin:24px 0 20px; padding-top:20px;">
+        <h2 style="font-size:17px; margin-bottom:4px;">🎉 楽しみカウントダウン</h2>
+        <p style="font-size:11px; color:rgba(255,255,255,0.3); margin-bottom:16px; line-height:1.5;">
+          記念日・旅行など、楽しみな予定までの日数も表示できます。
+        </p>
+      </div>
+      <div class="form-group">
+        <div id="eventEditList"></div>
+        <input type="text" id="eventNameInput" placeholder="例：沖縄旅行" maxlength="20" style="margin-bottom:10px;">
+        <div class="hol-cal-nav">
+          <button onclick="eventCalPrev()">‹</button>
+          <span id="eventCalTitle"></span>
+          <button onclick="eventCalNext()">›</button>
+        </div>
+        <div class="hol-cal-grid" id="eventCalGrid"></div>
+        <div class="event-add-row" style="align-items:center;">
+          <span id="eventSelectedLabel" style="flex:1; font-size:13px; color:rgba(255,255,255,0.5);">日付をタップで選択</span>
+          <button class="btn-add-holiday" onclick="addEvent()">＋ 追加</button>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid rgba(255,255,255,0.08); margin:24px 0 20px; padding-top:20px;">
+        <h2 style="font-size:17px; margin-bottom:4px;">💰 年金のざっくり試算</h2>
+        <p style="font-size:11px; color:rgba(255,255,255,0.3); margin-bottom:20px; line-height:1.5;">
+          あくまで概算です。正確な額は「ねんきん定期便」をご確認ください。
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label>働き方</label>
+        <div class="day-checks" style="gap:10px;">
+          <input type="radio" name="jobType" class="day-check" id="jobEmployee" value="employee" onchange="updatePension()">
+          <label for="jobEmployee" style="width:auto; padding:0 16px;">会社員（厚生年金）</label>
+          <input type="radio" name="jobType" class="day-check" id="jobSelf" value="self" onchange="updatePension()">
+          <label for="jobSelf" style="width:auto; padding:0 16px;">自営業（国民年金のみ）</label>
+        </div>
+      </div>
+
+      <div class="form-group" id="incomeGroup">
+        <label>会社員時代の平均年収</label>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="number" id="incomeInput" min="0" max="3000" placeholder="500"
+            style="width:100px; text-align:center;" oninput="updatePension()">
+          <span style="color:rgba(255,255,255,0.5); font-size:15px;">万円</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>年金の加入年数（見込み）</label>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="number" id="pensionYearsInput" min="0" max="50" placeholder="40"
+            style="width:100px; text-align:center;" oninput="updatePension()">
+          <span style="color:rgba(255,255,255,0.5); font-size:15px;">年</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>受給開始年齢</label>
+        <div class="age-display" id="pensionAgeDisplay" style="font-size:32px;">65</div>
+        <div class="age-display-unit">歳から受給</div>
+        <div class="age-slider-wrap">
+          <input type="range" class="age-slider" id="pensionAgeInput"
+            min="60" max="75" step="1" value="65"
+            oninput="updatePension()">
+        </div>
+        <div style="font-size:10px; color:rgba(255,255,255,0.3); text-align:center; margin-top:4px;">
+          60〜64歳=繰上げ（減額）／66〜75歳=繰下げ（増額）
+        </div>
+      </div>
+
+      <div id="pensionResult" style="background:rgba(96,165,250,0.08); border:1px solid rgba(96,165,250,0.2); border-radius:14px; padding:16px; margin-bottom:8px; text-align:center; min-height:40px;"></div>
+
       <button class="btn-save" onclick="saveSettings()">保存する</button>
     </div>
   </div>
@@ -656,6 +826,39 @@
     let companyHolidays = JSON.parse(localStorage.getItem('companyHolidays') || '[]');
     // 年間有休取得予定日数
     let paidLeavePerYear = Number(localStorage.getItem('paidLeavePerYear') || '0');
+    // 年金関連
+    let jobType = localStorage.getItem('jobType') || 'employee'; // employee | self
+    let avgIncome = Number(localStorage.getItem('avgIncome') || '0'); // 万円
+    let pensionYears = Number(localStorage.getItem('pensionYears') || '0'); // 年
+    let pensionStartAge = Number(localStorage.getItem('pensionStartAge') || '65');
+    // 楽しみイベント: [{name, date(YYYY-MM-DD)}]
+    let events = JSON.parse(localStorage.getItem('events') || '[]');
+
+    // 年金のざっくり試算（年額・円）を返す
+    function calcPension() {
+      // 基礎年金 満額（2024年度）= 約816,000円/年, 40年=480ヶ月で満額
+      const FULL_BASIC = 816000;
+      const yrs = Math.min(pensionYears, 40);
+      const basic = FULL_BASIC * (yrs / 40);
+
+      // 厚生年金（報酬比例部分のざっくり概算）
+      // 年額 ≈ 平均年収(円) × 0.005481 × 加入年数
+      let kosei = 0;
+      if (jobType === 'employee' && avgIncome > 0) {
+        kosei = avgIncome * 10000 * 0.005481 * pensionYears;
+      }
+
+      let annual = basic + kosei;
+
+      // 受給開始年齢で増減（65歳基準）
+      const diffMonths = (pensionStartAge - 65) * 12;
+      let rate = 1;
+      if (diffMonths < 0) rate = 1 + diffMonths * 0.004;   // 繰上げ -0.4%/月
+      else if (diffMonths > 0) rate = 1 + diffMonths * 0.007; // 繰下げ +0.7%/月
+      annual = annual * rate;
+
+      return { annual: Math.round(annual), basic: Math.round(basic), kosei: Math.round(kosei * rate) };
+    }
 
     // 今日〜退職日前日の出勤日数を計算
     function calcWorkDays(targetDateStr) {
@@ -720,6 +923,9 @@
       const msgCard = document.getElementById('messageCard');
       const targetLabel = document.getElementById('targetDateLabel');
 
+      // 楽しみカウントダウンは常に表示
+      renderEventList();
+
       if (!retirementDate) {
         card.innerHTML = `
           <div class="no-date">
@@ -778,6 +984,19 @@
 
       const ageLabel = retireAge ? `<div style="font-size:13px; color:rgba(255,255,255,0.35); letter-spacing:2px; margin-bottom:8px;">${retireAge}歳で退職まで</div>` : '';
 
+      // 年金見込み
+      let pensionHTML = '';
+      if (pensionYears > 0) {
+        const p = calcPension();
+        const monthly = Math.round(p.annual / 12);
+        pensionHTML = `
+          <div style="margin-top:24px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.08); text-align:center;">
+            <div style="font-size:11px; color:rgba(255,255,255,0.35); letter-spacing:2px; margin-bottom:6px;">💰 ${pensionStartAge}歳からの年金見込み（概算）</div>
+            <div style="font-size:30px; font-weight:800; color:#60a5fa; line-height:1.1;">約 ${yen(p.annual)}<span style="font-size:15px; font-weight:600;"> 円/年</span></div>
+            <div style="font-size:13px; color:rgba(255,255,255,0.45); margin-top:4px;">月あたり 約 ${yen(monthly)} 円</div>
+          </div>`;
+      }
+
       card.innerHTML = `
         <div class="countdown-wrap">
           ${ageLabel}
@@ -806,7 +1025,8 @@
             <div class="unit">秒</div>
           </div>
         </div>
-        ${progressHTML}`;
+        ${progressHTML}
+        ${pensionHTML}`;
 
       msgCard.textContent = getRandomMessage();
       targetLabel.textContent = `退職予定日：${formatDate(retirementDate)}`;
@@ -881,6 +1101,168 @@
       if (!bd || age === '') { preview.textContent = ''; return; }
       const result = calcRetirementDate(bd, age, months);
       if (result) preview.textContent = `→ 退職予定日：${formatDate(result)}`;
+    }
+
+    function yen(n) {
+      return n.toLocaleString('ja-JP');
+    }
+
+    // モーダル内の年金プレビューを更新（入力値から即時計算）
+    function updatePension() {
+      // 入力値を一時反映
+      const jt = document.querySelector('input[name="jobType"]:checked');
+      jobType = jt ? jt.value : jobType;
+      avgIncome = Number(document.getElementById('incomeInput').value || '0');
+      pensionYears = Number(document.getElementById('pensionYearsInput').value || '0');
+      pensionStartAge = Number(document.getElementById('pensionAgeInput').value || '65');
+
+      // 受給開始年齢の表示
+      const ageDisp = document.getElementById('pensionAgeDisplay');
+      if (ageDisp) ageDisp.textContent = pensionStartAge;
+
+      // 年収欄は会社員のときだけ表示
+      const incomeGroup = document.getElementById('incomeGroup');
+      if (incomeGroup) incomeGroup.style.display = (jobType === 'employee') ? 'block' : 'none';
+
+      const result = document.getElementById('pensionResult');
+      if (!result) return;
+
+      if (pensionYears === 0) {
+        result.innerHTML = `<span style="font-size:12px; color:rgba(255,255,255,0.4);">加入年数を入力すると試算が表示されます</span>`;
+        return;
+      }
+
+      const p = calcPension();
+      const monthly = Math.round(p.annual / 12);
+      let breakdown = `基礎年金 約${yen(p.basic)}円`;
+      if (jobType === 'employee' && p.kosei > 0) breakdown += ` ＋ 厚生年金 約${yen(p.kosei)}円`;
+
+      result.innerHTML = `
+        <div style="font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:4px;">受給見込み（年額）</div>
+        <div style="font-size:26px; font-weight:800; color:#60a5fa;">約 ${yen(p.annual)} 円</div>
+        <div style="font-size:13px; color:rgba(255,255,255,0.5); margin-top:2px;">月あたり 約 ${yen(monthly)} 円</div>
+        <div style="font-size:10px; color:rgba(255,255,255,0.3); margin-top:8px;">${breakdown}</div>`;
+    }
+
+    // 今日からの残り日数（マイナスなら過去）
+    function daysUntil(dateStr) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const target = new Date(dateStr);
+      target.setHours(0, 0, 0, 0);
+      return Math.round((target - today) / 86400000);
+    }
+
+    // イベント用カレンダーの状態
+    let eventCalYear = new Date().getFullYear();
+    let eventCalMonth = new Date().getMonth() + 1; // 1〜12
+    let eventSelectedDate = null; // "YYYY-MM-DD"
+
+    function eventCalPrev() {
+      eventCalMonth--;
+      if (eventCalMonth < 1) { eventCalMonth = 12; eventCalYear--; }
+      renderEventCal();
+    }
+
+    function eventCalNext() {
+      eventCalMonth++;
+      if (eventCalMonth > 12) { eventCalMonth = 1; eventCalYear++; }
+      renderEventCal();
+    }
+
+    function renderEventCal() {
+      const title = document.getElementById('eventCalTitle');
+      const grid = document.getElementById('eventCalGrid');
+      if (!title || !grid) return;
+
+      title.textContent = `${eventCalYear}年 ${eventCalMonth}月`;
+
+      const dows = ['日','月','火','水','木','金','土'];
+      let html = dows.map(d => `<div class="hol-cal-dow">${d}</div>`).join('');
+
+      const firstDow = new Date(eventCalYear, eventCalMonth - 1, 1).getDay();
+      const daysInMonth = new Date(eventCalYear, eventCalMonth, 0).getDate();
+
+      for (let i = 0; i < firstDow; i++) html += `<div class="hol-cal-cell"></div>`;
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const ymd = `${eventCalYear}-${String(eventCalMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const sel = (eventSelectedDate === ymd) ? 'selected' : '';
+        html += `<div class="hol-cal-cell ${sel}" onclick="selectEventDate('${ymd}')">${d}</div>`;
+      }
+      grid.innerHTML = html;
+    }
+
+    function selectEventDate(ymd) {
+      eventSelectedDate = ymd;
+      document.getElementById('eventSelectedLabel').textContent = formatDate(ymd);
+      renderEventCal();
+    }
+
+    function addEvent() {
+      const name = document.getElementById('eventNameInput').value.trim();
+      if (!name) { alert('予定の名前を入力してください'); return; }
+      if (!eventSelectedDate) { alert('カレンダーで日付を選んでください'); return; }
+      events.push({ name, date: eventSelectedDate });
+      events.sort((a, b) => a.date.localeCompare(b.date));
+      document.getElementById('eventNameInput').value = '';
+      eventSelectedDate = null;
+      document.getElementById('eventSelectedLabel').textContent = '日付をタップで選択';
+      renderEventCal();
+      renderEventEdit();
+    }
+
+    function removeEvent(idx) {
+      events.splice(idx, 1);
+      renderEventEdit();
+    }
+
+    // モーダル内の編集リスト
+    function renderEventEdit() {
+      const box = document.getElementById('eventEditList');
+      if (!box) return;
+      if (events.length === 0) {
+        box.innerHTML = `<p style="font-size:12px; color:rgba(255,255,255,0.25); margin-bottom:8px;">まだ予定がありません</p>`;
+        return;
+      }
+      box.innerHTML = events.map((ev, i) => `
+        <div class="event-edit-row">
+          <span class="e-name">${escapeHtml(ev.name)}</span>
+          <span class="e-date">${formatDate(ev.date)}</span>
+          <button onclick="removeEvent(${i})">×</button>
+        </div>`).join('');
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // メイン画面の楽しみカウントダウン一覧
+    function renderEventList() {
+      const box = document.getElementById('eventList');
+      if (!box) return;
+      if (events.length === 0) { box.innerHTML = ''; return; }
+
+      box.innerHTML = events.map(ev => {
+        const d = daysUntil(ev.date);
+        let numHTML, pastClass = '';
+        if (d > 0) {
+          numHTML = `<div class="days-number">${d}</div><div class="days-unit">日</div>`;
+        } else if (d === 0) {
+          numHTML = `<div class="days-number" style="font-size:60px;">🎉</div><div class="days-unit" style="color:#a78bfa;">今日！</div>`;
+        } else {
+          pastClass = 'past';
+          numHTML = `<div class="days-number" style="font-size:48px; color:rgba(255,255,255,0.3); -webkit-text-fill-color:rgba(255,255,255,0.3);">終了</div>`;
+        }
+        return `
+          <div class="card event-card ${pastClass}">
+            <div style="text-align:center;">
+              <div class="event-name">${escapeHtml(ev.name)}</div>
+              <div class="event-date">${formatDate(ev.date)}</div>
+              ${numHTML}
+            </div>
+          </div>`;
+      }).join('');
     }
 
     function mmddLabel(mmdd) {
@@ -970,9 +1352,19 @@
       });
       // 有休
       document.getElementById('paidLeaveInput').value = paidLeavePerYear || '';
+      // 年金
+      document.getElementById('jobEmployee').checked = (jobType === 'employee');
+      document.getElementById('jobSelf').checked = (jobType === 'self');
+      document.getElementById('incomeInput').value = avgIncome || '';
+      document.getElementById('pensionYearsInput').value = pensionYears || '';
+      document.getElementById('pensionAgeInput').value = pensionStartAge;
+      document.getElementById('pensionAgeDisplay').textContent = pensionStartAge;
       renderHolCal();
       renderHolidayTags();
+      renderEventCal();
+      renderEventEdit();
       updatePreview();
+      updatePension();
       document.getElementById('modal').classList.add('open');
     }
 
@@ -1013,6 +1405,18 @@
       // 有休
       paidLeavePerYear = Number(document.getElementById('paidLeaveInput').value || '0');
       localStorage.setItem('paidLeavePerYear', String(paidLeavePerYear));
+      // 年金
+      const jt = document.querySelector('input[name="jobType"]:checked');
+      jobType = jt ? jt.value : 'employee';
+      avgIncome = Number(document.getElementById('incomeInput').value || '0');
+      pensionYears = Number(document.getElementById('pensionYearsInput').value || '0');
+      pensionStartAge = Number(document.getElementById('pensionAgeInput').value || '65');
+      localStorage.setItem('jobType', jobType);
+      localStorage.setItem('avgIncome', String(avgIncome));
+      localStorage.setItem('pensionYears', String(pensionYears));
+      localStorage.setItem('pensionStartAge', String(pensionStartAge));
+      // 楽しみイベント
+      localStorage.setItem('events', JSON.stringify(events));
 
       closeModal();
       renderMain();
