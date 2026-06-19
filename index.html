@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="退職カウント">
-  <title>退職カウントダウン</title>
+  <title>退職＆楽しみカウントダウン</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon.png">
   <style>
@@ -20,9 +20,11 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
-      overflow: hidden;
+      justify-content: flex-start;
+      padding: 40px 20px calc(40px + env(safe-area-inset-bottom));
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     /* 背景アニメーション */
@@ -638,8 +640,8 @@
 <body>
   <div class="container">
     <div class="header">
-      <div class="label">Retirement Countdown</div>
-      <h1>退職カウントダウン</h1>
+      <div class="label">Retirement &amp; Fun Countdown</div>
+      <h1>退職＆楽しみカウントダウン</h1>
     </div>
 
     <!-- 楽しみカウントダウン一覧（最上部） -->
