@@ -791,17 +791,16 @@
       </div>
 
       <div class="form-group">
-        <label>働き方</label>
-        <div class="day-checks" style="gap:10px;">
-          <input type="radio" name="jobType" class="day-check" id="jobEmployee" value="employee" onchange="updatePension()">
-          <label for="jobEmployee" style="width:auto; padding:0 16px;">会社員（厚生年金）</label>
-          <input type="radio" name="jobType" class="day-check" id="jobSelf" value="self" onchange="updatePension()">
-          <label for="jobSelf" style="width:auto; padding:0 16px;">自営業（国民年金のみ）</label>
+        <label>厚生年金の加入年数（会社員・公務員の期間）</label>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="number" id="koseiYearsInput" min="0" max="50" placeholder="20"
+            style="width:100px; text-align:center;" oninput="updatePension()">
+          <span style="color:rgba(255,255,255,0.5); font-size:15px;">年</span>
         </div>
       </div>
 
       <div class="form-group" id="incomeGroup">
-        <label>会社員時代の平均年収</label>
+        <label>厚生年金期間の平均年収</label>
         <div style="display:flex; gap:10px; align-items:center;">
           <input type="number" id="incomeInput" min="0" max="3000" placeholder="500"
             style="width:100px; text-align:center;" oninput="updatePension()">
@@ -810,11 +809,15 @@
       </div>
 
       <div class="form-group">
-        <label>年金の加入年数（見込み）</label>
+        <label>国民年金のみの加入年数</label>
         <div style="display:flex; gap:10px; align-items:center;">
-          <input type="number" id="pensionYearsInput" min="0" max="50" placeholder="40"
+          <input type="number" id="kokuminYearsInput" min="0" max="50" placeholder="0"
             style="width:100px; text-align:center;" oninput="updatePension()">
           <span style="color:rgba(255,255,255,0.5); font-size:15px;">年</span>
+        </div>
+        <div style="font-size:10px; color:rgba(255,255,255,0.3); margin-top:6px; line-height:1.6;">
+          自営業・専業主婦/夫・フリーター・無職など、厚生年金に入っていなかった期間だけを入力。<br>
+          ※ 厚生年金の期間も基礎年金（国民年金部分）に自動で含めて計算します。
         </div>
       </div>
 
@@ -866,37 +869,45 @@
     // 年間有休取得予定日数
     let paidLeavePerYear = Number(localStorage.getItem('paidLeavePerYear') || '0');
     // 年金関連
-    let jobType = localStorage.getItem('jobType') || 'employee'; // employee | self
-    let avgIncome = Number(localStorage.getItem('avgIncome') || '0'); // 万円
-    let pensionYears = Number(localStorage.getItem('pensionYears') || '0'); // 年
+    let avgIncome = Number(localStorage.getItem('avgIncome') || '0'); // 万円（厚生年金期間の平均年収）
+    let koseiYears = Number(localStorage.getItem('koseiYears') || '0');   // 厚生年金の加入年数
+    let kokuminYears = Number(localStorage.getItem('kokuminYears') || '0'); // 国民年金のみの加入年数
     let pensionStartAge = Number(localStorage.getItem('pensionStartAge') || '65');
+    // 旧バージョン（jobType + pensionYears）からの移行
+    if (localStorage.getItem('koseiYears') === null && localStorage.getItem('pensionYears') !== null) {
+      const oldYears = Number(localStorage.getItem('pensionYears') || '0');
+      if (localStorage.getItem('jobType') === 'self') { kokuminYears = oldYears; koseiYears = 0; }
+      else { koseiYears = oldYears; kokuminYears = 0; }
+    }
     // 楽しみイベント: [{name, date(YYYY-MM-DD)}]
     let events = JSON.parse(localStorage.getItem('events') || '[]');
 
     // 年金のざっくり試算（年額・円）を返す
     function calcPension() {
       // 基礎年金 満額（2024年度）= 約816,000円/年, 40年=480ヶ月で満額
+      // 基礎年金は「国民年金のみの期間 ＋ 厚生年金の期間」の合計で決まる（上限40年）
       const FULL_BASIC = 816000;
-      const yrs = Math.min(pensionYears, 40);
-      const basic = FULL_BASIC * (yrs / 40);
+      const basicYears = Math.min(kokuminYears + koseiYears, 40);
+      const basic = FULL_BASIC * (basicYears / 40);
 
-      // 厚生年金（報酬比例部分のざっくり概算）
-      // 年額 ≈ 平均年収(円) × 0.005481 × 加入年数
+      // 厚生年金（報酬比例部分のざっくり概算）― 厚生年金の期間だけで計算
+      // 年額 ≈ 平均年収(円) × 0.005481 × 厚生年金加入年数
       let kosei = 0;
-      if (jobType === 'employee' && avgIncome > 0) {
-        kosei = avgIncome * 10000 * 0.005481 * pensionYears;
+      if (koseiYears > 0 && avgIncome > 0) {
+        kosei = avgIncome * 10000 * 0.005481 * koseiYears;
       }
-
-      let annual = basic + kosei;
 
       // 受給開始年齢で増減（65歳基準）
       const diffMonths = (pensionStartAge - 65) * 12;
       let rate = 1;
       if (diffMonths < 0) rate = 1 + diffMonths * 0.004;   // 繰上げ -0.4%/月
       else if (diffMonths > 0) rate = 1 + diffMonths * 0.007; // 繰下げ +0.7%/月
-      annual = annual * rate;
 
-      return { annual: Math.round(annual), basic: Math.round(basic), kosei: Math.round(kosei * rate) };
+      return {
+        annual: Math.round((basic + kosei) * rate),
+        basic: Math.round(basic * rate),
+        kosei: Math.round(kosei * rate)
+      };
     }
 
     // 今日〜退職日前日の出勤日数を計算
@@ -1025,7 +1036,7 @@
 
       // 年金見込み
       let pensionHTML = '';
-      if (pensionYears > 0) {
+      if (kokuminYears + koseiYears > 0) {
         const p = calcPension();
         const monthly = Math.round(p.annual / 12);
         pensionHTML = `
@@ -1175,24 +1186,23 @@
     // モーダル内の年金プレビューを更新（入力値から即時計算）
     function updatePension() {
       // 入力値を一時反映
-      const jt = document.querySelector('input[name="jobType"]:checked');
-      jobType = jt ? jt.value : jobType;
       avgIncome = Number(document.getElementById('incomeInput').value || '0');
-      pensionYears = Number(document.getElementById('pensionYearsInput').value || '0');
+      koseiYears = Number(document.getElementById('koseiYearsInput').value || '0');
+      kokuminYears = Number(document.getElementById('kokuminYearsInput').value || '0');
       pensionStartAge = Number(document.getElementById('pensionAgeInput').value || '65');
 
       // 受給開始年齢の表示
       const ageDisp = document.getElementById('pensionAgeDisplay');
       if (ageDisp) ageDisp.textContent = pensionStartAge;
 
-      // 年収欄は会社員のときだけ表示
+      // 年収欄は厚生年金の加入年数があるときだけ表示
       const incomeGroup = document.getElementById('incomeGroup');
-      if (incomeGroup) incomeGroup.style.display = (jobType === 'employee') ? 'block' : 'none';
+      if (incomeGroup) incomeGroup.style.display = (koseiYears > 0) ? 'block' : 'none';
 
       const result = document.getElementById('pensionResult');
       if (!result) return;
 
-      if (pensionYears === 0) {
+      if (kokuminYears + koseiYears === 0) {
         result.innerHTML = `<span style="font-size:12px; color:rgba(255,255,255,0.4);">加入年数を入力すると試算が表示されます</span>`;
         return;
       }
@@ -1200,7 +1210,7 @@
       const p = calcPension();
       const monthly = Math.round(p.annual / 12);
       let breakdown = `基礎年金 約${yen(p.basic)}円`;
-      if (jobType === 'employee' && p.kosei > 0) breakdown += ` ＋ 厚生年金 約${yen(p.kosei)}円`;
+      if (p.kosei > 0) breakdown += ` ＋ 厚生年金 約${yen(p.kosei)}円`;
 
       result.innerHTML = `
         <div style="font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:4px;">受給見込み（年額）</div>
@@ -1420,10 +1430,9 @@
       // 有休
       document.getElementById('paidLeaveInput').value = paidLeavePerYear || '';
       // 年金
-      document.getElementById('jobEmployee').checked = (jobType === 'employee');
-      document.getElementById('jobSelf').checked = (jobType === 'self');
+      document.getElementById('koseiYearsInput').value = koseiYears || '';
+      document.getElementById('kokuminYearsInput').value = kokuminYears || '';
       document.getElementById('incomeInput').value = avgIncome || '';
-      document.getElementById('pensionYearsInput').value = pensionYears || '';
       document.getElementById('pensionAgeInput').value = pensionStartAge;
       document.getElementById('pensionAgeDisplay').textContent = pensionStartAge;
       renderHolCal();
@@ -1485,14 +1494,13 @@
       paidLeavePerYear = Number(document.getElementById('paidLeaveInput').value || '0');
       localStorage.setItem('paidLeavePerYear', String(paidLeavePerYear));
       // 年金
-      const jt = document.querySelector('input[name="jobType"]:checked');
-      jobType = jt ? jt.value : 'employee';
       avgIncome = Number(document.getElementById('incomeInput').value || '0');
-      pensionYears = Number(document.getElementById('pensionYearsInput').value || '0');
+      koseiYears = Number(document.getElementById('koseiYearsInput').value || '0');
+      kokuminYears = Number(document.getElementById('kokuminYearsInput').value || '0');
       pensionStartAge = Number(document.getElementById('pensionAgeInput').value || '65');
-      localStorage.setItem('jobType', jobType);
       localStorage.setItem('avgIncome', String(avgIncome));
-      localStorage.setItem('pensionYears', String(pensionYears));
+      localStorage.setItem('koseiYears', String(koseiYears));
+      localStorage.setItem('kokuminYears', String(kokuminYears));
       localStorage.setItem('pensionStartAge', String(pensionStartAge));
       // 楽しみイベント
       localStorage.setItem('events', JSON.stringify(events));
