@@ -376,6 +376,30 @@
       box-shadow: 0 0 10px rgba(99,38,255,0.6);
     }
 
+    .mode-toggle {
+      display: flex;
+      gap: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 4px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 10px 0;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: rgba(255,255,255,0.5);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: linear-gradient(135deg, #a78bfa, #60a5fa);
+      color: #fff;
+    }
     .age-display {
       text-align: center;
       margin-top: 10px;
@@ -681,6 +705,13 @@
         <input type="date" id="birthdayInput" onchange="updatePreview()">
       </div>
       <div class="form-group">
+        <label>退職予定日の指定方法</label>
+        <div class="mode-toggle">
+          <button type="button" id="modeAgeBtn" class="mode-btn active" onclick="setRetireMode('age')">年齢で指定</button>
+          <button type="button" id="modeDateBtn" class="mode-btn" onclick="setRetireMode('date')">年月日で指定</button>
+        </div>
+      </div>
+      <div class="form-group" id="ageModeGroup">
         <label>退職する年齢</label>
         <div class="age-display" id="ageDisplay">60</div>
         <div class="age-display-unit">歳</div>
@@ -690,6 +721,10 @@
             oninput="onAgeSlider()">
         </div>
         <input type="hidden" id="monthInput" value="0">
+      </div>
+      <div class="form-group" id="dateModeGroup" style="display:none;">
+        <label>退職予定日</label>
+        <input type="date" id="retireDateInput" onchange="updatePreview()">
       </div>
       <div id="calcPreview" style="font-size:12px; color:#a78bfa; margin-bottom:16px; min-height:18px;"></div>
       <div class="form-group">
@@ -822,6 +857,8 @@
     let birthday = localStorage.getItem('birthday') || null;
     let retireAge = localStorage.getItem('retireAge') || null;
     let retireMonth = localStorage.getItem('retireMonth') || null;
+    // 退職予定日の入力方法: 'age'（年齢で指定）/ 'date'（年月日で指定）
+    let retireMode = localStorage.getItem('retireMode') || 'age';
     // 固定休日曜日: JSON配列 e.g. [0,6] = 日・土
     let offDays = JSON.parse(localStorage.getItem('offDays') || '[0,6]');
     // 会社休業日: JSON配列 e.g. ["01-01","05-03"] (月-日のみ、毎年繰り返し)
@@ -1095,11 +1132,37 @@
       updatePreview();
     }
 
+    function setRetireMode(mode) {
+      retireMode = mode;
+      document.getElementById('ageModeGroup').style.display = (mode === 'age') ? '' : 'none';
+      document.getElementById('dateModeGroup').style.display = (mode === 'date') ? '' : 'none';
+      document.getElementById('modeAgeBtn').classList.toggle('active', mode === 'age');
+      document.getElementById('modeDateBtn').classList.toggle('active', mode === 'date');
+      updatePreview();
+    }
+
+    // 生年月日と対象日から、その日時点の満年齢を計算
+    function computeAgeAt(bd, target) {
+      const b = new Date(bd), t = new Date(target);
+      let age = t.getFullYear() - b.getFullYear();
+      const m = t.getMonth() - b.getMonth();
+      if (m < 0 || (m === 0 && t.getDate() < b.getDate())) age--;
+      return age;
+    }
+
     function updatePreview() {
+      const preview = document.getElementById('calcPreview');
+      if (retireMode === 'date') {
+        const dv = document.getElementById('retireDateInput').value;
+        if (!dv) { preview.textContent = ''; return; }
+        const bd = document.getElementById('birthdayInput').value;
+        const ageNote = bd ? `（退職時 ${computeAgeAt(bd, dv)}歳）` : '';
+        preview.textContent = `→ 退職予定日：${formatDate(dv)} ${ageNote}`;
+        return;
+      }
       const bd = document.getElementById('birthdayInput').value;
       const age = document.getElementById('ageInput').value;
       const months = document.getElementById('monthInput').value;
-      const preview = document.getElementById('calcPreview');
       if (!bd || age === '') { preview.textContent = ''; return; }
       const result = calcRetirementDate(bd, age, months);
       if (result) preview.textContent = `→ 退職予定日：${formatDate(result)}`;
@@ -1347,6 +1410,8 @@
         document.getElementById('ageDisplay').textContent = retireAge;
       }
       if (retireMonth !== null) document.getElementById('monthInput').value = retireMonth;
+      if (retirementDate) document.getElementById('retireDateInput').value = retirementDate;
+      setRetireMode(retireMode);
       if (startDate) document.getElementById('startInput').value = startDate;
       // 曜日チェック
       [0,1,2,3,4,5,6].forEach(d => {
@@ -1380,19 +1445,31 @@
 
     function saveSettings() {
       const bd = document.getElementById('birthdayInput').value;
-      const age = document.getElementById('ageInput').value;
-      const months = document.getElementById('monthInput').value;
       const s = document.getElementById('startInput').value;
-      if (!bd) { alert('生年月日を入力してください'); return; }
-      if (age === '') { alert('退職する年齢を入力してください'); return; }
-      const computed = calcRetirementDate(bd, age, months);
+      let computed, age, months;
+      if (retireMode === 'date') {
+        const dv = document.getElementById('retireDateInput').value;
+        if (!dv) { alert('退職予定日を入力してください'); return; }
+        computed = dv;
+        months = '0';
+        // 生年月日があれば退職時の年齢を逆算（なければ年齢ラベルは非表示）
+        age = bd ? String(computeAgeAt(bd, dv)) : null;
+      } else {
+        age = document.getElementById('ageInput').value;
+        months = document.getElementById('monthInput').value;
+        if (!bd) { alert('生年月日を入力してください'); return; }
+        if (age === '') { alert('退職する年齢を入力してください'); return; }
+        computed = calcRetirementDate(bd, age, months);
+      }
       if (!computed) { alert('日付の計算に失敗しました'); return; }
-      birthday = bd;
+      birthday = bd || birthday;
       retireAge = age;
       retireMonth = months || '0';
       retirementDate = computed;
-      localStorage.setItem('birthday', bd);
-      localStorage.setItem('retireAge', age);
+      localStorage.setItem('retireMode', retireMode);
+      if (bd) localStorage.setItem('birthday', bd);
+      if (age !== null) localStorage.setItem('retireAge', age);
+      else localStorage.removeItem('retireAge');
       localStorage.setItem('retireMonth', months || '0');
       localStorage.setItem('retirementDate', computed);
       if (s) {
